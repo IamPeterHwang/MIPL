@@ -174,25 +174,25 @@ unsigned char CChildView::Clip(int value, int low, int high) // clipping, below 
 		return (unsigned char) value;
 }
 
-void CChildView::OnArithmeticAdd() // pixel value + 100
+void CChildView::OnArithmeticAdd() // pixel value + 50
 {
 	if( dibData == NULL )
 		return;
 
 	for( int i=0; i < width * height; i++) {
-		dstData[i] = Clip(srcData[i] + 100, 0, 255);
+		dstData[i] = Clip(srcData[i] + 50, 0, 255);
 	}
 
 	Invalidate(FALSE);
 }
 
-void CChildView::OnArithmeticSub() // pixel value - 100
+void CChildView::OnArithmeticSub() // pixel value - 50
 {
 	if( dibData == NULL )
 		return;
 
 	for( int i=0; i < width * height; i++) {
-		dstData[i] = Clip(srcData[i] - 100, 0, 255);
+		dstData[i] = Clip(srcData[i] - 50, 0, 255);
 	}
 
 	Invalidate(FALSE);
