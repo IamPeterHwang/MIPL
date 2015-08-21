@@ -33,18 +33,18 @@ BEGIN_MESSAGE_MAP(CChildView, CWnd)
 		ON_WM_PAINT()
 	ON_WM_CREATE()
 	ON_WM_HSCROLL()
-	ON_COMMAND(ID_TEST_TEST,					OnTestTest)
-	ON_COMMAND(ID_FILE_OPEN,					OnFileOpen)
-	ON_COMMAND(ID_ARITHMETIC_ADD,				OnArithmeticAdd)
-	ON_COMMAND(ID_ARITHMETIC_SUB,				OnArithmeticSub)
-	ON_COMMAND(ID_ARITHMETIC_MULTIPLY,			OnArithmeticMultiply)
-	ON_COMMAND(ID_ARITHMETIC_DIVIDE,			OnArithmeticDivide)
-	ON_COMMAND(ID_ARITHMETIC_NEGATIVE,			OnArithmeticNegative)
-	ON_COMMAND(ID_ARITHMETIC_GAMMA,				OnArithmeticGamma)
-	ON_COMMAND(ID_GEOMETRIC_FLIPV,				OnGeometricFlipV)
-	ON_COMMAND(ID_GEOMETRIC_FLIPH,				OnGeometricFlipH)
-	ON_COMMAND(ID_GEOMETRIC_ROTATELEFT,			OnGeometricRotateLeft)
-	ON_COMMAND(ID_GEOMETRIC_ROTATERIGHT,		OnGeometricRotateRight)
+	ON_COMMAND(ID_TEST_TEST,						OnTestTest)
+	ON_COMMAND(ID_FILE_OPEN,						OnFileOpen)
+	ON_COMMAND(ID_ARITHMETIC_ADD,					OnArithmeticAdd)
+	ON_COMMAND(ID_ARITHMETIC_SUB,					OnArithmeticSub)
+	ON_COMMAND(ID_ARITHMETIC_MULTIPLY,				OnArithmeticMultiply)
+	ON_COMMAND(ID_ARITHMETIC_DIVIDE,				OnArithmeticDivide)
+	ON_COMMAND(ID_ARITHMETIC_NEGATIVE,				OnArithmeticNegative)
+	ON_COMMAND(ID_ARITHMETIC_GAMMA,					OnArithmeticGamma)
+	ON_COMMAND(ID_GEOMETRIC_FLIPV,					OnGeometricFlipV)
+	ON_COMMAND(ID_GEOMETRIC_FLIPH,					OnGeometricFlipH)
+	ON_COMMAND(ID_GEOMETRIC_ROTATELEFT,				OnGeometricRotateLeft)
+	ON_COMMAND(ID_GEOMETRIC_ROTATERIGHT,			OnGeometricRotateRight)
 	ON_COMMAND(ID_LUT_ADD, &CChildView::OnLutAdd)
 	ON_COMMAND(ID_LUT_SUB, &CChildView::OnLutSub)
 	ON_COMMAND(ID_LUT_MULTIPLY, &CChildView::OnLutMultiply)
@@ -81,20 +81,20 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	scrollBar.Create(SBS_HORZ | WS_VISIBLE | WS_CHILD, CRect(0, 520, 520, 540),
-		this, 9999);						// SBS_HORZ: type of scrollbar, CRect(left, top, right, bottom), 9999: scrollbar id.
-	scrollBar.SetScrollRange(-100, 200);	// Scrollbar total range, far left = -100, far right = 200.
-	scrollBar.SetScrollPos(0);				// Scrollbox(thumb) starting position.
+		this, 9999);		// SBS_HORZ: type of scrollbar, CRect(left, top, right, bottom), 9999: scrollbar id.
+	scrollBar.SetScrollRange(-100, 200);		// Scrollbar total range, far left = -100, far right = 200.
+	scrollBar.SetScrollPos(0);		// Scrollbox(thumb) starting position.
 
 	return 0;
 }
 
 void CChildView::OnPaint() 
 {
-	CPaintDC dc(this); // device context for painting
+	CPaintDC dc(this);		// device context for painting
 
-	
 	if(dibData == NULL)
-		return;									// if dibData == NULL, end
+		return;				// if dibData == NULL, end
+
 
 	//switch (scrollBar.GetScrollPos())			// As soon as file is opend, synchronize scrollbox, then operate gammacorrection.
 	//{
@@ -107,33 +107,31 @@ void CChildView::OnPaint()
 	//		break;
 	//}
 
-	//Invalidate(FALSE); 
-		
 	
 	::SetDIBitsToDevice(dc.m_hDC,
 		0, 0, width, height,					// Destination
 		0, 0, 0, height,						// Source
 		dstData, bitmapInfo, DIB_RGB_COLORS);	// print bmp file on screen, that is, draw image
-	
+
 	
 	CPen	Pen;
 	CPen*	poldPen;
-	Pen.CreatePen(PS_SOLID, 8, RGB(0, 200, 255));
+	Pen.CreatePen(PS_SOLID, 3, RGB(0, 200, 255));
 	poldPen = dc.SelectObject(&Pen);
 
 	CBrush	Brush;
 	CBrush*	poldBrush;
-	Brush.CreateSolidBrush(RGB(255, 0, 0));
+	Brush.CreateSolidBrush(RGB(0, 0, 255));
 	poldBrush = dc.SelectObject(&Brush);
 
 	{
-		dc.MoveTo(200, 200);
-		dc.LineTo(300, 300);
+		dc.MoveTo(10, 10);
+		dc.LineTo(50, 50);
 
-		dc.Rectangle(10, 10, 50, 50);
-		dc.Ellipse(50, 50, 150, 150);
-		dc.RoundRect(100, 100, 220, 320, 30, 80);
-		dc.Pie(0, 0, 250, 250, 100, 50, 200, 100);
+		dc.Rectangle(70, 10, 100, 50);
+		dc.Ellipse(120, 10, 150, 50);
+		dc.RoundRect(170, 10, 220, 50, 10, 30);
+		dc.Pie(240, 10, 300, 50, 270, 10, 330, 30);
 	}
 	
 	dc.SelectObject(poldBrush);
@@ -554,6 +552,6 @@ void CChildView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	double gamma = 1 + curpos / (double)100;
 	GammaCorrection( gamma );
 
-
+	
 	CWnd::OnHScroll(nSBCode, nPos, pScrollBar);
 }
