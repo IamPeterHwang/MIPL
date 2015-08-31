@@ -1,6 +1,4 @@
-
 // ChildView.cpp : implementation of the CChildView class
-//
 
 #include "stdafx.h"
 #include "MIPL_MFC.h"
@@ -18,6 +16,9 @@ CChildView::CChildView()
 {
 	dibData		= NULL;		// constructor, initialize pointer to NULL
 	dstData		= NULL;
+
+	leftButtonDown = NULL;
+	rightButtonDown = NULL;
 }
 
 CChildView::~CChildView()
@@ -45,18 +46,25 @@ BEGIN_MESSAGE_MAP(CChildView, CWnd)
 	ON_COMMAND(ID_GEOMETRIC_FLIPH,					OnGeometricFlipH)
 	ON_COMMAND(ID_GEOMETRIC_ROTATELEFT,				OnGeometricRotateLeft)
 	ON_COMMAND(ID_GEOMETRIC_ROTATERIGHT,			OnGeometricRotateRight)
-	ON_COMMAND(ID_LUT_ADD, &CChildView::OnLutAdd)
-	ON_COMMAND(ID_LUT_SUB, &CChildView::OnLutSub)
-	ON_COMMAND(ID_LUT_MULTIPLY, &CChildView::OnLutMultiply)
-	ON_COMMAND(ID_LUT_DIVIDE, &CChildView::OnLutDivide)
-	ON_COMMAND(ID_LUT_NEGATIVE, &CChildView::OnLutNegative)
-	ON_COMMAND(ID_LUT_GAMMA, &CChildView::OnLutGamma)
-	ON_UPDATE_COMMAND_UI(ID_LUT_ADD, &CChildView::OnUpdateLutAdd)
-	ON_UPDATE_COMMAND_UI(ID_LUT_SUB, &CChildView::OnUpdateLutSub)
-	ON_UPDATE_COMMAND_UI(ID_LUT_MULTIPLY, &CChildView::OnUpdateLutMultiply)
-	ON_UPDATE_COMMAND_UI(ID_LUT_DIVIDE, &CChildView::OnUpdateLutDivide)
-	ON_UPDATE_COMMAND_UI(ID_LUT_NEGATIVE, &CChildView::OnUpdateLutNegative)
-	ON_UPDATE_COMMAND_UI(ID_LUT_GAMMA, &CChildView::OnUpdateLutGamma)
+	ON_COMMAND(ID_LUT_ADD,							OnLutAdd)
+	ON_COMMAND(ID_LUT_SUB,							OnLutSub)
+	ON_COMMAND(ID_LUT_MULTIPLY,						OnLutMultiply)
+	ON_COMMAND(ID_LUT_DIVIDE,						OnLutDivide)
+	ON_COMMAND(ID_LUT_NEGATIVE,						OnLutNegative)
+	ON_COMMAND(ID_LUT_GAMMA,						OnLutGamma)
+	ON_COMMAND(ID_FILTER_BLUR,						OnBlur)
+	ON_COMMAND(ID_FILTER_SHARPEN,					OnSharpen)
+	ON_UPDATE_COMMAND_UI(ID_LUT_ADD,				OnUpdateLutAdd)
+	ON_UPDATE_COMMAND_UI(ID_LUT_SUB,				OnUpdateLutSub)
+	ON_UPDATE_COMMAND_UI(ID_LUT_MULTIPLY,			OnUpdateLutMultiply)
+	ON_UPDATE_COMMAND_UI(ID_LUT_DIVIDE,				OnUpdateLutDivide)
+	ON_UPDATE_COMMAND_UI(ID_LUT_NEGATIVE,			OnUpdateLutNegative)
+	ON_UPDATE_COMMAND_UI(ID_LUT_GAMMA,				OnUpdateLutGamma)
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
+	ON_WM_MOUSEMOVE()
+	ON_WM_RBUTTONDOWN()
+	ON_WM_RBUTTONUP()
 END_MESSAGE_MAP()
 
 
@@ -81,31 +89,19 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	scrollBar.Create(SBS_HORZ | WS_VISIBLE | WS_CHILD, CRect(0, 520, 520, 540),
-		this, 9999);		// SBS_HORZ: type of scrollbar, CRect(left, top, right, bottom), 9999: scrollbar id.
-	scrollBar.SetScrollRange(-100, 200);		// Scrollbar total range, far left = -100, far right = 200.
-	scrollBar.SetScrollPos(0);		// Scrollbox(thumb) starting position.
+		this, 9999);						// SBS_HORZ: type of scrollbar, CRect(left, top, right, bottom), 9999: scrollbar id
+	scrollBar.SetScrollRange(-100, 200);	// Scrollbar total range, far left = -100, far right = 200
+	scrollBar.SetScrollPos(0);				// Scrollbox(thumb) starting position
 
 	return 0;
 }
 
 void CChildView::OnPaint() 
 {
-	CPaintDC dc(this);		// device context for painting
+	CPaintDC dc(this);						// device context for painting
 
 	if(dibData == NULL)
-		return;				// if dibData == NULL, end
-
-
-	//switch (scrollBar.GetScrollPos())			// As soon as file is opend, synchronize scrollbox, then operate gammacorrection.
-	//{
-	//	case 0:
-	//		break;
-
-	//	default:
-	//		double gamma = 1 + scrollBar.GetScrollPos() / (double)100;
-	//		GammaCorrection( gamma );
-	//		break;
-	//}
+		return;								// if dibData == NULL, end
 
 	
 	::SetDIBitsToDevice(dc.m_hDC,
@@ -113,6 +109,25 @@ void CChildView::OnPaint()
 		0, 0, 0, height,						// Source
 		dstData, bitmapInfo, DIB_RGB_COLORS);	// print bmp file on screen, that is, draw image
 
+	
+	CString str;
+	double GammaValue = 1 + scrollBar.GetScrollPos() / 100.;
+	str.Format(_T("Gamma = %f"), GammaValue);
+	dc.SetBkMode(TRANSPARENT);
+	dc.SetTextColor(RGB(255, 0, 0));
+
+	
+	CFont font;
+	CFont* pfont;
+	font.CreateFont(20, 10, 0, 0, FW_BOLD, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Arial"));
+	pfont = dc.SelectObject(&font);
+
+	dc.TextOut(365, 450, str, 12);
+	
+	dc.SelectObject(pfont);
+	font.DeleteObject();
+	
 	
 	CPen	Pen;
 	CPen*	poldPen;
@@ -125,13 +140,13 @@ void CChildView::OnPaint()
 	poldBrush = dc.SelectObject(&Brush);
 
 	{
-		dc.MoveTo(10, 10);
-		dc.LineTo(50, 50);
+		dc.MoveTo(520, 10);
+		dc.LineTo(550, 50);
 
-		dc.Rectangle(70, 10, 100, 50);
-		dc.Ellipse(120, 10, 150, 50);
-		dc.RoundRect(170, 10, 220, 50, 10, 30);
-		dc.Pie(240, 10, 300, 50, 270, 10, 330, 30);
+		dc.Rectangle(520, 60, 550, 100);
+		dc.Ellipse(520, 110, 550, 150);
+		dc.RoundRect(520, 160, 550, 200, 10, 20);
+		dc.Pie(520, 210, 550, 250, 520, 210, 550, 230);
 	}
 	
 	dc.SelectObject(poldBrush);
@@ -210,8 +225,21 @@ void CChildView::OnFileOpen()
 	// copy srcdata to dstdata
 	memcpy(dstData, srcData, step * height); // memmove has same function
 
-	fclose(file); // disconnect between file and stream, otherwise stay put, with memory allocated 
+	// disconnect between file and stream, otherwise stay put, with memory allocated 
+	fclose(file);
 
+	// As soon as file is opend, synchronize scrollbox, then operate gammacorrection
+	switch (scrollBar.GetScrollPos())
+	{
+		case 0:
+			break;
+
+		default:
+			double gamma = 1 + scrollBar.GetScrollPos() / (double)100;
+			GammaCorrection( gamma );
+			break;
+	}
+	
 	Invalidate(FALSE); // don't erase background
 
 }
@@ -546,12 +574,110 @@ void CChildView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 			curpos = nPos;    // nPos is the position that the scroll box has been dragged to.
 			break;
 	}
-
+	
 	scrollBar.SetScrollPos(curpos);	 // Set the new position of the thumb (scroll box).
-
+	
 	double gamma = 1 + curpos / (double)100;
 	GammaCorrection( gamma );
 
-	
+
 	CWnd::OnHScroll(nSBCode, nPos, pScrollBar);
+}
+
+void CChildView::OnBlur()			// Filtering
+{
+	double mask[9] = { 1/9. , 1/9. , 1/9. ,
+						1/9. , 1/9. , 1/9. ,
+						1/9. , 1/9. , 1/9. };
+	SpatialFilter3x3( mask );
+}
+
+void CChildView::OnSharpen()		// Filtering
+{
+	double mask[9] = { -1, -1, -1,
+						-1, 9, -1,
+						-1, -1, -1 };
+	SpatialFilter3x3( mask );
+}
+
+void CChildView::SpatialFilter3x3( double* mask )
+{
+	for(int i = 1; i < height; i++)
+	{
+		for(int j = 1; j < width; j++)
+		{
+			double sum = 0;
+			
+			for(int k = 0; k < 3; k++)
+			{
+				for(int l = 0; l < 3; l++)
+				{
+					sum += srcData[(i - 1 + k)*step + (j - 1 + l)] * mask[k*3 + l];
+				}
+			}
+			
+			dstData[i*step + j] = Clip(int(sum), 0, 255);
+		}
+	}
+
+	Invalidate(FALSE);
+}
+
+
+void CChildView::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	leftButtonDown = TRUE;
+	leftButtonPoint = point;
+
+	CWnd::OnLButtonDown(nFlags, point);
+}
+
+void CChildView::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	leftButtonDown = FALSE;
+
+	CWnd::OnLButtonUp(nFlags, point);
+}
+
+void CChildView::OnRButtonDown(UINT nFlags, CPoint point)
+{
+	rightButtonDown = TRUE;
+	rightButtonPoint = point;
+
+	CWnd::OnRButtonDown(nFlags, point);
+}
+
+void CChildView::OnRButtonUp(UINT nFlags, CPoint point)
+{
+	rightButtonDown = FALSE;
+
+	CWnd::OnRButtonUp(nFlags, point);
+}
+
+void CChildView::OnMouseMove(UINT nFlags, CPoint point)
+{
+	int left_diff = point.y - leftButtonPoint.y;
+	int right_diff = point.y - rightButtonPoint.y;
+
+	unsigned char lut[256];
+
+	if (leftButtonDown)
+	{
+		for(int i = 0; i < 256; i++)
+			lut[i] = Clip(i + left_diff, 0, 255);
+		
+		for(int i = 0; i < width * height; i++)
+			dstData[i] = lut[ srcData[i] ];
+	} else if(rightButtonDown) {
+		
+		for(int i = 0; i < 256; i++)
+			lut[i] = Clip(i - right_diff, 0, 255);
+		
+		for(int i = 0; i < width * height; i++)
+			dstData[i] = lut[ srcData[i] ];
+	}
+
+	Invalidate(FALSE);
+	
+	CWnd::OnMouseMove(nFlags, point);
 }

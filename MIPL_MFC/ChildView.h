@@ -1,7 +1,5 @@
 
 // ChildView.h : interface of the CChildView class
-//
-
 
 #pragma once
 
@@ -27,12 +25,20 @@ public:									// public -> anywhere access
 	int					height;			// pixel
 	int					step;			// size of one row, byte
 
-	int					GetRealWidth(int width);						// get step
-	unsigned char		Clip(int value, int low, int high);				// below low -> low, above high -> high 
+	int					GetRealWidth(int width);				// function : get step
+	unsigned char		Clip(int value, int low, int high);		// function : below low -> low, above high -> high 
 
-	void				GammaCorrection(double gamma);
+	void				GammaCorrection(double gamma);			// function : gamma correction
 
-	CScrollBar			scrollBar;
+	CScrollBar			scrollBar;								// class CScrollBar : pertaining to scrollbar
+
+	void				SpatialFilter3x3(double* mask);
+
+	BOOL				leftButtonDown;
+	CPoint				leftButtonPoint;
+
+	BOOL				rightButtonDown;
+	CPoint				rightButtonPoint;
 
 // Operations, member function occuring activity
 public:
@@ -81,5 +87,13 @@ public:
 	afx_msg void OnUpdateLutDivide(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateLutNegative(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateLutGamma(CCmdUI *pCmdUI);
+
+	afx_msg void OnBlur();
+	afx_msg void OnSharpen();
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 };
 
