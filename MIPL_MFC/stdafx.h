@@ -37,7 +37,7 @@
 
 
 
-
+#include "KDicomD/KDicom.h"
 
 
 

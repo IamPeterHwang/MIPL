@@ -40,6 +40,17 @@ public:									// public -> anywhere access
 	BOOL				rightButtonDown;
 	CPoint				rightButtonPoint;
 
+	void				OpenBMPFile(CString path);
+	void				OpenDICOMFile(CString path);
+
+	BOOL				CreateDIB();
+
+	CString				photometric;
+	double				windowCenter, windowWidth;
+	int					bitsAllocated, bitsStored, pixelRepresentation;
+
+	void				Convert16to8(double windowCenter, double windowWidth);
+
 // Operations, member function occuring activity
 public:
 

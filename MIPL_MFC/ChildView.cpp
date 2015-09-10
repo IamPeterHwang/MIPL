@@ -88,10 +88,10 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	scrollBar.Create(SBS_HORZ | WS_VISIBLE | WS_CHILD, CRect(0, 520, 520, 540),
-		this, 9999);						// SBS_HORZ: type of scrollbar, CRect(left, top, right, bottom), 9999: scrollbar id
-	scrollBar.SetScrollRange(-100, 200);	// Scrollbar total range, far left = -100, far right = 200
-	scrollBar.SetScrollPos(0);				// Scrollbox(thumb) starting position
+	//scrollBar.Create(SBS_HORZ | WS_VISIBLE | WS_CHILD, CRect(0, 520, 520, 540),
+	//	this, 9999);						// SBS_HORZ: type of scrollbar, CRect(left, top, right, bottom), 9999: scrollbar id
+	//scrollBar.SetScrollRange(-100, 200);	// Scrollbar total range, far left = -100, far right = 200
+	//scrollBar.SetScrollPos(0);				// Scrollbox(thumb) starting position
 
 	return 0;
 }
@@ -110,7 +110,7 @@ void CChildView::OnPaint()
 		dstData, bitmapInfo, DIB_RGB_COLORS);	// print bmp file on screen, that is, draw image
 
 	
-	CString str;
+	/*CString str;
 	double GammaValue = 1 + scrollBar.GetScrollPos() / 100.;
 	str.Format(_T("Gamma = %f"), GammaValue);
 	dc.SetBkMode(TRANSPARENT);
@@ -153,7 +153,7 @@ void CChildView::OnPaint()
 	Brush.DeleteObject();
 
 	dc.SelectObject(poldPen);
-	Pen.DeleteObject();
+	Pen.DeleteObject();*/
 
 	/*
 	// filling color on whole screen
@@ -180,14 +180,24 @@ void CChildView::OnTestTest()
 void CChildView::OnFileOpen()
 {
 	// show File Dialog Box
-	CString szFilter = _T( "bitmap Files (*.bmp)|*.bmp|All Files (*.*)|*.*|");
+	CString szFilter = _T( "DICOM Files (*.dcm)|*.dcm|BITMAP Files (*.bmp)|*.bmp|All Files (*.*)|*.*|");
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ALLOWMULTISELECT, szFilter, this );
 	if(dlg.DoModal() == IDCANCEL)
 		return;
 
+	CString ext = dlg.GetFileExt();
+	ext.MakeUpper();
+	if(ext == _T("BMP"))
+		OpenBMPFile(dlg.GetPathName());
+	else if(ext == _T("DCM"))
+		OpenDICOMFile(dlg.GetPathName());
+}
+
+void CChildView::OpenBMPFile(CString path)
+{
 	// read file
 	FILE * file;
-	_wfopen_s(&file, dlg.GetPathName(), L"rb");
+	_wfopen_s(&file, path, L"rb");
 
 	/* 
 	_wfopen_s(&file, L"lena.bmp", L"rb");
@@ -229,7 +239,7 @@ void CChildView::OnFileOpen()
 	fclose(file);
 
 	// As soon as file is opend, synchronize scrollbox, then operate gammacorrection
-	switch (scrollBar.GetScrollPos())
+	/*switch (scrollBar.GetScrollPos())
 	{
 		case 0:
 			break;
@@ -238,9 +248,160 @@ void CChildView::OnFileOpen()
 			double gamma = 1 + scrollBar.GetScrollPos() / (double)100;
 			GammaCorrection( gamma );
 			break;
-	}
+	}*/
 	
 	Invalidate(FALSE); // don't erase background
+
+}
+
+void CChildView::OpenDICOMFile(CString path)
+{
+	KDicomDS * ds = new KDicomDS;
+	ds -> LoadDS(path, FALSE);
+
+	KDicomElement * de;
+
+	de = ds -> GetElement(0x0028, 0x0002);
+	if(de)
+	{
+		samplePerPixel = de -> GetValueUS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x0004);
+	if(de)
+	{
+		photometric = de -> GetValueCS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x0011);
+	if(de)
+	{
+		width = de -> GetValueUS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x0010);
+	if(de)
+	{
+		height = de -> GetValueUS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x0100);
+	if(de)
+	{
+		bitsAllocated = de -> GetValueUS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x0101);
+	if(de)
+	{
+		bitsStored = de -> GetValueUS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x0103);
+	if(de)
+	{
+		pixelRepresentation = de -> GetValueUS(0);
+	}
+
+	de = ds -> GetElement(0x0028, 0x1051);
+	if(de)
+	{
+		windowWidth = _wtof(de -> GetValueDS(0));
+	}
+
+	de = ds -> GetElement(0x0028, 0x1050);
+	if(de)
+	{
+		windowCenter = _wtof(de -> GetValueDS(0));
+	}
+	
+	srcData = new unsigned char[width*height*2];
+	de = ds -> GetElement(0x7FE0, 0x0010);
+	if(de)
+	{
+		unsigned char * temp = de -> GetValueOB();
+		memcpy(srcData, temp, width*height*2);
+	}
+
+	CreateDIB();
+	step = GetRealWidth(width);
+	if(dstData)
+		delete[] dstData;
+	dstData = new unsigned char[step*height];
+
+	Convert16to8(windowCenter, windowWidth);
+
+	Invalidate(FALSE);
+}
+
+void CChildView::Convert16to8(double windowCenter, double windowWidth)
+{
+	short * src16 = (short*) srcData;
+	short windowLow = windowCenter - windowWidth / 2;
+	short windowHigh = windowCenter + windowWidth / 2;
+	double ratio = 255 / windowWidth;
+	short value;
+	for(int i=0; i < height; i++)
+	{
+		for(int j=0; j < width; j++)
+		{
+			value = src16[i*width + j];
+			if(value < windowLow)
+				dstData[(height-1-i)*width + j] = 0;
+			else if(value > windowHigh)
+				dstData[(height-1-i)*width + j] = 255;
+			else
+				dstData[(height-1-i)*width + j] = (value - windowLow)*ratio;
+		}
+	}
+}
+
+BOOL CChildView::CreateDIB()
+{
+	int colorNum = 256;
+	step = GetRealWidth(width);
+
+	int dibSize = sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * colorNum;
+
+	if(dibData)
+		delete[] dibData;
+	dibData = new unsigned char[dibSize];
+
+	bitmapInfo = (BITMAPINFO*) dibData;
+
+	bitmapInfo -> bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bitmapInfo -> bmiHeader.biWidth = width;
+	bitmapInfo -> bmiHeader.biHeight = height;
+	bitmapInfo -> bmiHeader.biPlanes = 1;
+	bitmapInfo -> bmiHeader.biBitCount = WORD(samplePerPixel*8);
+	bitmapInfo -> bmiHeader.biCompression = 0;
+	bitmapInfo -> bmiHeader.biSizeImage = step*height;
+	bitmapInfo -> bmiHeader.biXPelsPerMeter = 0;
+	bitmapInfo -> bmiHeader.biYPelsPerMeter = 0;
+	bitmapInfo -> bmiHeader.biClrUsed = colorNum;
+	bitmapInfo -> bmiHeader.biClrImportant = 0;
+
+	if(photometric == _T("MONOCHROME1"))
+	{
+		for(int i=0; i < colorNum; i++)
+		{
+			bitmapInfo -> bmiColors[i].rgbRed = 255-i;
+			bitmapInfo -> bmiColors[i].rgbGreen = 255-i;
+			bitmapInfo -> bmiColors[i].rgbBlue = 255-i;
+			bitmapInfo -> bmiColors[i].rgbReserved = 0;
+		}
+	} else if(photometric == _T("MONOCHROME2"))
+	{
+		for(int i=0; i < colorNum; i++)
+		{
+			bitmapInfo -> bmiColors[i].rgbRed = i;
+			bitmapInfo -> bmiColors[i].rgbGreen = i;
+			bitmapInfo -> bmiColors[i].rgbBlue = i;
+			bitmapInfo -> bmiColors[i].rgbReserved = 0;
+		}
+	}
+
+	return TRUE;
 
 }
 
@@ -539,46 +700,46 @@ void CChildView::OnUpdateLutGamma(CCmdUI *pCmdUI)
 
 void CChildView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
-	// SCROLLINFO contains scroll bar parameter
-	SCROLLINFO info;
-	scrollBar.GetScrollInfo(&info, SIF_ALL);
-	
-	int minpos = info.nMin;
-	int maxpos = info.nMax;
-	int curpos = scrollBar.GetScrollPos();
+	//// SCROLLINFO contains scroll bar parameter
+	//SCROLLINFO info;
+	//scrollBar.GetScrollInfo(&info, SIF_ALL);
+	//
+	//int minpos = info.nMin;
+	//int maxpos = info.nMax;
+	//int curpos = scrollBar.GetScrollPos();
 
-   // Determine the new position of scroll box.
-	switch (nSBCode)
-	{
-		case SB_LINELEFT:      // Scroll left
-			if (curpos > minpos)
-				curpos--;
-			break;
-		
-		case SB_LINERIGHT:      // Scroll right
-			if (curpos < maxpos)
-				curpos++;
-			break;
+ //  // Determine the new position of scroll box.
+	//switch (nSBCode)
+	//{
+	//	case SB_LINELEFT:      // Scroll left
+	//		if (curpos > minpos)
+	//			curpos--;
+	//		break;
+	//	
+	//	case SB_LINERIGHT:      // Scroll right
+	//		if (curpos < maxpos)
+	//			curpos++;
+	//		break;
 
-		case SB_PAGELEFT:      // Scroll page(Shaft, in addition to Thumb) left
-			if (curpos > minpos)
-				curpos = max(minpos, curpos - 10);
-			break;
+	//	case SB_PAGELEFT:      // Scroll page(Shaft, in addition to Thumb) left
+	//		if (curpos > minpos)
+	//			curpos = max(minpos, curpos - 10);
+	//		break;
 
-		case SB_PAGERIGHT:      // Scroll page(Shaft, in addition to Thumb) right
-			if (curpos < maxpos)
-				curpos = min(maxpos, curpos + 10);
-			break;
-		
-		case SB_THUMBTRACK:   // Drag scroll box to specified position.
-			curpos = nPos;    // nPos is the position that the scroll box has been dragged to.
-			break;
-	}
-	
-	scrollBar.SetScrollPos(curpos);	 // Set the new position of the thumb (scroll box).
-	
-	double gamma = 1 + curpos / (double)100;
-	GammaCorrection( gamma );
+	//	case SB_PAGERIGHT:      // Scroll page(Shaft, in addition to Thumb) right
+	//		if (curpos < maxpos)
+	//			curpos = min(maxpos, curpos + 10);
+	//		break;
+	//	
+	//	case SB_THUMBTRACK:   // Drag scroll box to specified position.
+	//		curpos = nPos;    // nPos is the position that the scroll box has been dragged to.
+	//		break;
+	//}
+	//
+	//scrollBar.SetScrollPos(curpos);	 // Set the new position of the thumb (scroll box).
+	//
+	//double gamma = 1 + curpos / (double)100;
+	//GammaCorrection( gamma );
 
 
 	CWnd::OnHScroll(nSBCode, nPos, pScrollBar);
@@ -626,15 +787,15 @@ void CChildView::SpatialFilter3x3( double* mask )
 
 void CChildView::OnLButtonDown(UINT nFlags, CPoint point)
 {
-	leftButtonDown = TRUE;
-	leftButtonPoint = point;
+	/*leftButtonDown = TRUE;
+	leftButtonPoint = point;*/
 
 	CWnd::OnLButtonDown(nFlags, point);
 }
 
 void CChildView::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	leftButtonDown = FALSE;
+	/*leftButtonDown = FALSE;*/
 
 	CWnd::OnLButtonUp(nFlags, point);
 }
@@ -656,7 +817,16 @@ void CChildView::OnRButtonUp(UINT nFlags, CPoint point)
 
 void CChildView::OnMouseMove(UINT nFlags, CPoint point)
 {
-	int left_diff = point.y - leftButtonPoint.y;
+	double RightDiffWidth = point.x - rightButtonPoint.x;
+	double RightDiffCenter = point.y - rightButtonPoint.y;
+	
+	windowWidth = windowWidth + RightDiffWidth;
+	windowCenter = windowCenter + RightDiffCenter;
+
+	if(rightButtonDown)
+		Convert16to8(windowCenter, windowWidth);
+
+	/*int left_diff = point.y - leftButtonPoint.y;
 	int right_diff = point.y - rightButtonPoint.y;
 
 	unsigned char lut[256];
@@ -675,7 +845,7 @@ void CChildView::OnMouseMove(UINT nFlags, CPoint point)
 		
 		for(int i = 0; i < width * height; i++)
 			dstData[i] = lut[ srcData[i] ];
-	}
+	}*/
 
 	Invalidate(FALSE);
 	

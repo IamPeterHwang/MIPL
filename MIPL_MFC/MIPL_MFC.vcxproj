@@ -100,6 +100,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ChildView.h" />
+    <ClInclude Include="KDicomD\KDicom.h" />
+    <ClInclude Include="KDicomD\KDicomDS.h" />
+    <ClInclude Include="KDicomD\KDicomElement.h" />
+    <ClInclude Include="KDicomD\KDicomFileMap.h" />
+    <ClInclude Include="KDicomD\KDicomQuery.h" />
+    <ClInclude Include="KDicomD\mlConv.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MIPL_MFC.h" />
     <ClInclude Include="Resource.h" />
@@ -108,6 +114,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ChildView.cpp" />
+    <ClCompile Include="KDicomD\KDicomDS.cpp" />
+    <ClCompile Include="KDicomD\KDicomDSDecode.cpp" />
+    <ClCompile Include="KDicomD\KDicomDSEncode.cpp" />
+    <ClCompile Include="KDicomD\KDicomElement.cpp" />
+    <ClCompile Include="KDicomD\KDicomFileMap.cpp" />
+    <ClCompile Include="KDicomD\KDicomQuery.cpp" />
+    <ClCompile Include="KDicomD\mlConv.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MIPL_MFC.cpp" />
     <ClCompile Include="stdafx.cpp">
