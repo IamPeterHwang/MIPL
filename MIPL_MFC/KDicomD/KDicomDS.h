@@ -12,11 +12,6 @@ public:
 	int					   m_nFileLength;
 	int				   	GetFileLength();
 
-   // DICOM File Map
-   KDicomFileMap *      m_pFileMap;
-   BOOL                 m_bMapSourceFile;
-   BOOL                 m_bCopySourceFile;
-
    // DICOM File 
    FILE *               m_pFile;
    fpos_t               m_posStart;
@@ -61,7 +56,7 @@ public:
    void                 DecodeImage(KDicomElement * pDE);
 
    // Dataset Decode
-	BOOL				      LoadDS(CString filename, BOOL bFileMap = TRUE, BOOL bReadOnly = TRUE, KD_TRANSFER_SYNTAX ts = TS_AUTO);
+	BOOL				      LoadDS(CString filename, BOOL bReadOnly = TRUE, KD_TRANSFER_SYNTAX ts = TS_AUTO);
    BOOL				      LoadDSBuff(unsigned char * pBuff, int length, KD_TRANSFER_SYNTAX ts = TS_AUTO);
 	BOOL	      			MetaInfoProcess();
 	BOOL                 ReadUS(unsigned short * value);
@@ -118,6 +113,13 @@ public:
    DWORD                getCodepage() const     { return _csCodepage; }
    void                 setDefaultCharset();
 
-   //
-   BOOL                 m_bRead7FE0;
+   int                  m_nSamplePerPixel, m_nWidth, m_nHeight, m_nBitsAllocated, m_nBitsStored, m_nRepresentation;
+   double               m_dWindowCenter, m_dWindowWidth;
+   KD_PHOTOMETRIC       m_nPhotometric;
+
+   void                 ReadParameters();
+   BOOL                 GetImageData(unsigned char * pBuff, int frame = 0);
+   BOOL                 DecodeJpegMem8(unsigned char * pSrc, unsigned int srcLength, unsigned char * pDst);
+   BOOL                 DecodeJpegMem12(unsigned char * pSrc, unsigned int srcLength, unsigned char * pDst);
+   BOOL                 DecodeJpegMem16(unsigned char * pSrc, unsigned int srcLength, unsigned char * pDst);
 };

@@ -6,7 +6,6 @@ KDicomQuery	KDicomDS::m_Query;
 KDicomDS::KDicomDS()
 {
 	m_pView			   = NULL;
-   m_pFileMap        = NULL;
    m_bFile           = TRUE;
 	m_pFile			   = NULL;
 	m_bBuffer		   = FALSE;
@@ -14,10 +13,6 @@ KDicomDS::KDicomDS()
    m_bMetaHeader     = FALSE;
    _csCodepage       = 1252;
    m_nTSOrg          = KD_TRANSFER_SYNTAX(1000);
-   m_bRead7FE0       = TRUE;
-   
-   m_bMapSourceFile  = TRUE;
-   m_bCopySourceFile = FALSE;
 }
 
 KDicomDS::~KDicomDS()
@@ -27,13 +22,6 @@ KDicomDS::~KDicomDS()
 
 void KDicomDS::Reset()
 {
-   if(m_pFileMap){
-      if(m_bCopySourceFile){
-         ::DeleteFile(m_pFileMap->m_strFilePath);
-      }
-      delete m_pFileMap;
-      m_pFileMap = NULL;
-   }
    KDicomElement * pDE;
 	while(!m_listDE.IsEmpty()){
 		pDE = m_listDE.RemoveHead();
@@ -519,9 +507,6 @@ BOOL KDicomDS::CopyDS(KDicomDS * pDS, BOOL bValue)
 
    Reset();
 
-   if(pDS->m_pFileMap)
-      pDS->m_pFileMap->Map();
-
    TransferSyntax = pDS->TransferSyntax;
    m_nTSOrg = pDS->m_nTSOrg;
 
@@ -531,9 +516,6 @@ BOOL KDicomDS::CopyDS(KDicomDS * pDS, BOOL bValue)
       pDst = AddElement(pSrc->GetTag());
       CopyElement(pDS, pSrc, pDst, bValue);
    }
-
-   if(pDS->m_pFileMap)
-      pDS->m_pFileMap->Unmap();
 
    return TRUE;
 }
@@ -572,12 +554,7 @@ unsigned int KDicomDS::CopyElement(KDicomDS * pSrcDS, KDicomElement * pSrc, KDic
       if((length > 0) && (pSrc->GetTag().group != 0xFFFE) && (pSrc->GetVR() != SQ)){
          unsigned char * temp;
          if((temp = pDst->ValueAlloc(length, 0)) != NULL){
-            if(pSrc->m_nImagePos != -1 && pSrcDS->m_pFileMap){
-               memcpy(temp, pSrcDS->m_pFileMap->Map() + pSrc->m_nImagePos, length);
-            }
-            else{
-               memcpy(temp, pSrc->m_pValue, length);
-            }
+            memcpy(temp, pSrc->m_pValue, length);
          }
       }
       pDst->m_nVM = pSrc->m_nVM;
@@ -662,4 +639,59 @@ CString KDicomDS::GetLocaleString(char * string)
    }
 
    return str;
+}
+
+BOOL KDicomDS::GetImageData(unsigned char * pBuff, int frame)
+{
+   KDicomElement * pDE;
+   pDE = GetElement(0x7FE0, 0x0010);
+   if(pDE == NULL)
+      return NULL;
+
+   int frameLength, rawLength = 0;
+   unsigned char * pRaw = NULL;
+   int step;
+   if(m_nBitsAllocated == 8)
+      step = m_nWidth * m_nSamplePerPixel;
+   else
+      step = m_nWidth * 2;
+
+   if(pDE->GetLength() == 0xFFFFFFFF){
+      frameLength	= step * m_nHeight;
+
+      KDicomElement * pCL;
+      POSITION pos = pDE->m_listDE.FindIndex(frame + 1);
+      if(pos){
+         pCL = pDE->m_listDE.GetNext(pos);
+         rawLength   = pCL->GetLength();
+         pRaw        = pCL->GetValueOB();
+      }
+      if(pRaw == NULL)
+         return FALSE;
+
+      // Decompress
+      switch(GetTransferSyntax()){
+      case JPEG_BASELINE:
+         DecodeJpegMem8(pRaw, rawLength, pBuff);
+         break;
+      case JPEG_EXTENDED_2_4:
+         if(m_nBitsAllocated == 8)
+            DecodeJpegMem8(pRaw, rawLength, pBuff);
+         else
+            DecodeJpegMem12(pRaw, rawLength, pBuff);
+         break;
+      case JPEG_LOSSLESS_14:
+      case JPEG_LOSSLESS_FIRST_14:
+         if(m_nBitsAllocated == 8)
+            DecodeJpegMem8(pRaw, rawLength, pBuff);
+         else
+            DecodeJpegMem16(pRaw, rawLength, pBuff);
+         break;
+      }
+   }
+   else{
+      frameLength	= pDE->GetLength() / m_nFrameCount;
+      pRaw = pDE->GetValueOB() + frameLength * frame;
+      memcpy(pBuff, pRaw, m_nWidth * m_nHeight * 2);
+   }
 }

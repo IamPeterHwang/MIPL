@@ -159,5 +159,4 @@ CString KD_A2W(char * value);
 #include "math.h"
 #include "KDicomElement.h"
 #include "KDicomQuery.h"
-#include "KDicomFileMap.h"
 #include "KDicomDS.h"

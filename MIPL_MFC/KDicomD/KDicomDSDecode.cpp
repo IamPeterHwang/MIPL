@@ -1,17 +1,10 @@
 #include "stdafx.h"
 
-BOOL KDicomDS::LoadDS(CString filename, BOOL bFileMap, BOOL bReadOnly, KD_TRANSFER_SYNTAX ts)
+BOOL KDicomDS::LoadDS(CString filename, BOOL bReadOnly, KD_TRANSFER_SYNTAX ts)
 {
 	Reset();
 
    m_bFile = TRUE;
-
-   // File Map
-	if(bFileMap){
-      m_pFileMap = new KDicomFileMap;
-      if(m_bMapSourceFile)
-         m_pFileMap->Create(filename, bReadOnly);
-	}
 
    // Open File
    if((m_pFile = _tfopen(filename, _T("rb"))) == NULL){
@@ -36,6 +29,8 @@ BOOL KDicomDS::LoadDS(CString filename, BOOL bFileMap, BOOL bReadOnly, KD_TRANSF
    // Close File
    fclose(m_pFile);
 
+   ReadParameters();
+
    return TRUE;
 }
 
@@ -59,13 +54,6 @@ BOOL KDicomDS::DecodeCommon(KD_TRANSFER_SYNTAX ts)
 {
    // Read Meta Info Header.
    MetaInfoProcess();
-
-   // Stream
-   if(m_pFileMap){
-      fpos_t cur;
-      fgetpos(m_pFile, &cur);
-      m_nStreamPos = int(cur - m_posStart);
-   }
 
    // Check Transfer Syntax.
    if(ts == TS_AUTO)
@@ -325,17 +313,8 @@ BOOL KDicomDS::DecodeElement(KDicomElement * pDE, KD_TRANSFER_VR ts, unsigned in
 		   }
 		   else{
 			   if(m_bFile){
-               if(m_pFileMap && pDE->GetTag().element == 0xE000){
-                  // Compressed Image: File to File Map
-                  fpos_t cur;
-                  fgetpos(m_pFile, &cur);
-                  fseek(m_pFile, length, SEEK_CUR);
-                  pDE->m_nImagePos = int(cur - m_posStart);
-               }
-               else{
-                  // Compressed Image: File to Memory
-                  DecodeImage(pDE);
-               }
+               // Compressed Image: File to Memory
+               DecodeImage(pDE);
 			   }
 			   else{
                // Compressed Image: Memory to Memory
@@ -358,16 +337,8 @@ BOOL KDicomDS::DecodeElement(KDicomElement * pDE, KD_TRANSFER_VR ts, unsigned in
          else{
             // Defined Length
             if(m_bFile){
-               if(m_pFileMap && pDE->GetTag().element == 0xE000){
-                  // Compressed Image: File to File Map
-                  fpos_t cur;
-                  fgetpos(m_pFile, &cur);
-                  fseek(m_pFile, length, SEEK_CUR);
-               }
-               else{
-                  // Compressed Image: File to Memory
-                  DecodeImage(pDE);
-               }
+               // Compressed Image: File to Memory
+               DecodeImage(pDE);
             }
             else{
                // Compressed Image: Memory to Memory
@@ -388,17 +359,8 @@ BOOL KDicomDS::DecodeElement(KDicomElement * pDE, KD_TRANSFER_VR ts, unsigned in
 	else{
 		if(m_bFile){
          if(tag.group == 0x7FE0 && tag.element == 0x0010 && pDE->m_pParent == NULL){
-            if(m_pFileMap){
-               // Uncompressed Image: File to File Map
-               fpos_t cur;
-               fgetpos(m_pFile, &cur);
-               fseek(m_pFile, pDE->GetLength(), SEEK_CUR);
-               pDE->m_nImagePos = int(cur - m_posStart);
-            }
-            else{
-               // Uncompressed Image: File to Memory
-               DecodeImage(pDE);
-            }
+            // Uncompressed Image: File to Memory
+            DecodeImage(pDE);
          }
          else{
             // Normal Value: File to Memory 
@@ -418,14 +380,7 @@ BOOL KDicomDS::DecodeElement(KDicomElement * pDE, KD_TRANSFER_VR ts, unsigned in
 
 void KDicomDS::DecodeImage(KDicomElement * pDE)
 {
-   if(m_bRead7FE0)
-      pDE->SetValue(m_pFile, TransferSyntax);
-   else{
-      fpos_t cur;
-      fgetpos(m_pFile, &cur);
-      fseek(m_pFile, pDE->GetLength(), SEEK_CUR);
-      pDE->m_nImagePos = int(cur - m_posStart);
-   }
+   pDE->SetValue(m_pFile, TransferSyntax);
 }
 
 BOOL KDicomDS::ReadUS(unsigned short * value)
@@ -588,4 +543,70 @@ void KDicomDS::setDefaultCharset()
    default:
       _csCodepage = 1252;
    }
+}
+
+void KDicomDS::ReadParameters()
+{
+   KDicomElement * pDE;
+
+   CString str;
+   CString photometric[13] = {_T("MONOCHROME1"),_T("MONOCHROME2"),_T("PALETTE COLOR"),_T("RGB"),_T("HSV"),
+      _T("ARGB"),_T("CMYK"),_T("YBR_FULL"),_T("YBR_FULL_422"),_T("YBR_PARTIAL_422")
+      _T("YBR_PARTIAL_420"), _T("YBR_ICT"), _T("YBR_RCT")};
+
+   // sample per pixel
+   if((pDE = GetElement(0x0028, 0x0002)) == NULL)
+      m_nSamplePerPixel = 1;
+   else
+      m_nSamplePerPixel	= pDE->GetValueUS(0);
+   
+   // photometric interpretation
+   if((pDE = GetElement(0x0028, 0x0004)) != NULL){
+      str = pDE->GetValueCS(0);
+      str.TrimRight();
+      for(int i=0;i<13;i++){
+         if(str == photometric[i]){
+            m_nPhotometric = (KD_PHOTOMETRIC) i;
+            break;
+         }
+      }
+   }
+
+   // height
+   if((pDE = GetElement(0x0028, 0x0010)) != NULL){
+      m_nHeight		= pDE->GetValueUS(0);
+   }
+
+   // width
+   if((pDE = GetElement(0x0028, 0x0011)) != NULL){
+      m_nWidth		   = pDE->GetValueUS(0);
+   }
+
+   // bits allocated
+   if((pDE = GetElement(0x0028, 0x0100)) != NULL){
+      m_nBitsAllocated = pDE->GetValueUS(0);
+   }
+
+   // bits stored
+   if((pDE = GetElement(0x0028, 0x0101)) != NULL){
+      m_nBitsStored	= pDE->GetValueUS(0);
+   }
+
+   // pixel representation
+   if((pDE = GetElement(0x0028, 0x0103)) == NULL)
+      m_nRepresentation = 0;
+   else
+      m_nRepresentation	= pDE->GetValueUS(0);
+
+   // Window Width
+   if((pDE = GetElement(0x0028, 0x1051)) == NULL)
+      m_dWindowWidth = 0;
+   else
+      m_dWindowWidth = _tstof(pDE->GetValueDS(0));
+
+   // Window Center
+   if((pDE = GetElement(0x0028, 0x1050)) == NULL)
+      m_dWindowCenter = 0;
+   else
+      m_dWindowCenter = _tstof(pDE->GetValueDS(0));
 }
