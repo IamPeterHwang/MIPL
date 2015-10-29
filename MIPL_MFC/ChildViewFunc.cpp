@@ -8,7 +8,7 @@
 #define new DEBUG_NEW
 #endif
 
-void CChildView::OnArithmeticAdd() // pixel value + 50
+void CChildView::OnArithmeticAdd() // pixel value +300
 {
 	if( dibData == NULL )
 		return;
@@ -27,7 +27,7 @@ void CChildView::OnArithmeticAdd() // pixel value + 50
 	Invalidate(FALSE);
 }
 
-void CChildView::OnArithmeticSub() // pixel value - 50
+void CChildView::OnArithmeticSub() // pixel value -200
 {
 	if( dibData == NULL )
 		return;
@@ -47,7 +47,7 @@ void CChildView::OnArithmeticSub() // pixel value - 50
 
 }
 
-void CChildView::OnArithmeticMultiply() // pixel value * 5
+void CChildView::OnArithmeticMultiply() // pixel value *3
 {
 	if( dibData == NULL )
 		return;
@@ -67,7 +67,7 @@ void CChildView::OnArithmeticMultiply() // pixel value * 5
 
 }
 
-void CChildView::OnArithmeticDivide() // pixel value / 4
+void CChildView::OnArithmeticDivide() // pixel value /3 
 {
 	if( dibData == NULL )
 		return;
@@ -92,11 +92,7 @@ void CChildView::OnArithmeticNegative() // reversal, 0 -> 255, 255 -> 0
 	if( dibData == NULL )
 		return;
 
-	for( int i=0; i < width * height; i++)
-	{
-		dstData[i] = 255 - srcData[i];
-	}
-
+	
 	Invalidate(FALSE);
 
 }
@@ -174,7 +170,7 @@ void CChildView::OnBlur()			// Filtering
 	roiSize.width = width;
 	roiSize.height = height;
 
-	ippiFilterLowpass_16s_C1R(src, srcStep, dst, srcStep, roiSize, ippMskSize5x5);
+	ippiFilterLowpass_16s_C1R(src, srcStep, dst, srcStep, roiSize, ippMskSize3x3);
 	Convert16to8();
 
 	Invalidate(FALSE);
