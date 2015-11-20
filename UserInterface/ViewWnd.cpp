@@ -4,7 +4,7 @@
 #include "stdafx.h"
 #include "UserInterface.h"
 #include "ViewWnd.h"
-
+#include "Caption3D.h"
 
 // ViewWnd
 
@@ -62,8 +62,31 @@ BOOL ViewWnd::OnEraseBkgnd(CDC* pDC)
 void ViewWnd::OnPaint()
 {
 	CPaintDC dc(this); // device context for painting
-	
+
 	dc.FillSolidRect(cclientRect, RGB(255,0,0));
+
+	
+	// prepare memory DC
+	CDC * pDC = new CDC;
+	pDC->CreateCompatibleDC(&dc);
+	CBitmap		Bitmap;
+	CBitmap *	pOldBitmap;
+	Bitmap.CreateCompatibleBitmap(&dc, 100, 100);
+	pOldBitmap = pDC->SelectObject(&Bitmap);
+
+	// back
+	pDC->FillSolidRect(CRect(0, 0 , 100, 100), RGB(0, 0, 0));
+
+	// draw
+	dc.BitBlt(0, 0, 100, 100, pDC, 0, 0, SRCCOPY);
+
+
+
+	// clear memory DC
+	pDC->SelectObject(pOldBitmap);
+	Bitmap.DeleteObject();
+	pDC->DeleteDC();
+	delete pDC;
 }
 
 

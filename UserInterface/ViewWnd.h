@@ -1,6 +1,6 @@
 #pragma once
 
-
+class Caption3D;
 // ViewWnd
 
 class ViewWnd : public CWnd
@@ -14,6 +14,7 @@ public:
 public:
 	CRect		cclientRect;
 	CString		testString();
+	Caption3D *	caption3d;
 
 protected:
 	DECLARE_MESSAGE_MAP()
