@@ -55,6 +55,7 @@ BEGIN_MESSAGE_MAP(CChildView, CWnd)
 	ON_COMMAND(ID_GEOMETRIC_ROTATERIGHT,			OnGeometricRotateRight)
 	ON_COMMAND(ID_FILTER_BLUR,						OnBlur)
 	ON_COMMAND(ID_FILTER_SHARPEN,					OnSharpen)
+	ON_COMMAND(ID_LUT_OPEN, &CChildView::OnLutOpen)
 END_MESSAGE_MAP()
 
 
@@ -228,16 +229,42 @@ void CChildView::OpenDICOMFile(CString path)
 	delete dicomDS;
 
 	CreateDIB();
-
-	Convert16to8();
+	
+	if(samplePerPixel == 1)
+		Convert16to8();
+	
+	else
+	{
+		int srcOffset;
+		int dstOffset;
+		
+		for(int i=0; i < height ;i++)
+		{
+			
+			dstOffset = (height - i - 1) * dibStep;
+			srcOffset = i * srcStep;
+			
+			for(int j=0; j < width ;j++)
+			{
+				dibImage[dstOffset + j*3+2] = dstData[srcOffset + j*3];
+				dibImage[dstOffset + j*3+1] = dstData[srcOffset + j*3+1];
+				dibImage[dstOffset + j*3] = dstData[srcOffset + j*3+2];
+			}
+		}
+	}  
 
 	Invalidate(FALSE);
 }
 
 BOOL CChildView::CreateDIB()
 {
-	int colorNum = 256;
-	dibStep = GetRealWidth(width);
+	int colorNum;
+	if(samplePerPixel == 1)
+		colorNum = 256;
+	else
+		colorNum = 0;
+
+	dibStep = GetRealWidth(width*samplePerPixel);
 
 	int dibSize = sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * colorNum + dibStep * height;
 
@@ -266,8 +293,8 @@ BOOL CChildView::CreateDIB()
 		for(int i=0; i < colorNum; i++)
 		{
 			bitmapInfo -> bmiColors[i].rgbRed = 255-i;
-			bitmapInfo -> bmiColors[i].rgbGreen = 255-i;
-			bitmapInfo -> bmiColors[i].rgbBlue = 255-i;
+			bitmapInfo -> bmiColors[i].rgbGreen = 255-i+30;
+			bitmapInfo -> bmiColors[i].rgbBlue = 255-i+60;
 			bitmapInfo -> bmiColors[i].rgbReserved = 0;
 		}
 	} else if(photometric == MONOCHROME2)
@@ -275,8 +302,8 @@ BOOL CChildView::CreateDIB()
 		for(int i=0; i < colorNum; i++)
 		{
 			bitmapInfo -> bmiColors[i].rgbRed = i;
-			bitmapInfo -> bmiColors[i].rgbGreen = i;
-			bitmapInfo -> bmiColors[i].rgbBlue = i;
+			bitmapInfo -> bmiColors[i].rgbGreen = i+30;
+			bitmapInfo -> bmiColors[i].rgbBlue = i+60;
 			bitmapInfo -> bmiColors[i].rgbReserved = 0;
 		}
 	}
@@ -306,7 +333,7 @@ void CChildView::Convert16to8()
 			else if(value > windowHigh)
 				dibImage[(height-1-i)*width + j] = 255;
 			else
-				dibImage[(height-1-i)*width + j] = (value - windowLow)*ratio;
+				dibImage[(height-1-i)*width + j] = (value - windowLow) * ratio;
 		}
 	}
 }
@@ -374,4 +401,82 @@ void CChildView::OnMouseMove(UINT nFlags, CPoint point)
 	}
 	
 	CWnd::OnMouseMove(nFlags, point);
+}
+
+void CChildView::OnLutOpen()
+{
+	// open file
+	CString szFilter = _T ("LUT Files (*.lut)|*.lut|All Files (*.*)|*.*|");
+	CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ALLOWMULTISELECT, szFilter, this);
+	if(dlg.DoModal() == IDCANCEL)
+		return;
+	
+	FILE * file;
+	if((file = _tfopen(dlg.GetPathName(), _T("r"))) == NULL)
+	{
+		AfxMessageBox(_T("Cannot Open LUT file"));
+		return;
+	}
+	
+	// read
+
+	char szLine[1024];
+	char seps[] = "\n\\\r\\\t\\ "; 
+	char * token;
+	CString	str, type;
+	unsigned short r,g, b, index ;
+	
+	while(fgets(szLine , 1024, file) != NULL)
+	{
+		token = strtok(szLine, seps);    
+		str = token ;        
+		
+		if(str == "*")
+			continue;
+		
+		type = token ;
+		type.MakeUpper();
+
+		if(type == "S")
+		{
+			token = strtok(NULL, seps);
+			
+			if(token == NULL)
+				continue;
+			
+			index = atoi (token);
+			
+			token = strtok (NULL, seps);
+			
+			if(token == NULL)
+				continue;
+			
+			r = atoi (token);
+			
+			token = strtok (NULL, seps);
+			
+			if(token == NULL)
+				continue;
+			
+			g = atoi (token);
+			
+			token = strtok (NULL, seps);
+			
+			if(token == NULL)
+				continue;
+			
+			b = atoi (token);
+
+
+			bitmapInfo->bmiColors [index]. rgbRed    = Clip (r, 0, 255);
+			bitmapInfo->bmiColors [index]. rgbGreen  = Clip (g, 0, 255);
+			bitmapInfo->bmiColors [index]. rgbBlue   = Clip (b, 0, 255);
+
+		}
+	}
+
+	fclose( file);
+	
+	Invalidate( FALSE);
+
 }
