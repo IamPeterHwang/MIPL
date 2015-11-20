@@ -293,8 +293,8 @@ BOOL CChildView::CreateDIB()
 		for(int i=0; i < colorNum; i++)
 		{
 			bitmapInfo -> bmiColors[i].rgbRed = 255-i;
-			bitmapInfo -> bmiColors[i].rgbGreen = 255-i+30;
-			bitmapInfo -> bmiColors[i].rgbBlue = 255-i+60;
+			bitmapInfo -> bmiColors[i].rgbGreen = 255-i;
+			bitmapInfo -> bmiColors[i].rgbBlue = 255-i;
 			bitmapInfo -> bmiColors[i].rgbReserved = 0;
 		}
 	} else if(photometric == MONOCHROME2)
@@ -302,8 +302,8 @@ BOOL CChildView::CreateDIB()
 		for(int i=0; i < colorNum; i++)
 		{
 			bitmapInfo -> bmiColors[i].rgbRed = i;
-			bitmapInfo -> bmiColors[i].rgbGreen = i+30;
-			bitmapInfo -> bmiColors[i].rgbBlue = i+60;
+			bitmapInfo -> bmiColors[i].rgbGreen = i;
+			bitmapInfo -> bmiColors[i].rgbBlue = i;
 			bitmapInfo -> bmiColors[i].rgbReserved = 0;
 		}
 	}
